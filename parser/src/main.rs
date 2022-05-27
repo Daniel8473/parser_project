@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::collections::HashSet;
 
 extern crate regex;
 use regex::Regex;
@@ -22,14 +23,27 @@ fn main() {
 
 custom_error!{MyError
     InvalidString{pos: usize} = "Syntax error at character position {pos}"
-    //Error at Line 2 Character 10. The syntax should be: DeclarationType := DataType Identifier.
+    // Error at Line 2 Character 10. The syntax should be: DeclarationType := DataType Identifier.
 }
 
 // global current for storing current lexeme
 struct Parser {
+    fir_MultOperator: HashSet
+    f_m_o(){
+        if "+"
+        elif "-"
+    }
+}
 
-    //get_next() or error for terminal
-    //non terminal, call fn
+impl Parser {
+    fn new() -> Parser {
+        // create first sets
+        Parser {
+
+        }
+    }
+    // get_next() or error for terminal
+    // non terminal, call fn
     // FIRST: 2 character look ahead example
     // if FIRST(X)
         // if FIRST (A)
@@ -37,10 +51,6 @@ struct Parser {
     // else if FIRST(Y)
             // if FIRST (C)
         // else if FIRST (D)
-}
-
-impl Parser {
-
 }
 
 enum TokenType {
