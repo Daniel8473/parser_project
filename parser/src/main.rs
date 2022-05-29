@@ -48,9 +48,10 @@ struct Parser {
     // TODO error case: EBNF tree has been fully traversed, but all_tokens vector hasn't: 
     // DONE error case: all_tokens vector has been fully traversed, but EBNF tree hasn't: handled in get_next()
     // TODO call error printing correctly
-
     curr_pos: usize,
     all_tokens: Vec<Token>,
+    t_text: String,
+    t_type: String,
 
     fir_declaration: HashSet< &'static str>,
     fir_main_declaration: HashSet< &'static str>,
@@ -84,16 +85,21 @@ impl Parser {
     fn new(all_tokens_input: Vec<Token>) -> Parser {
         // copy/paste to create first sets  ->  fir_: HashSet::from([]),
         // TODO: FIRST sets arent all disjoint, is this ok?
+        // TOOD: DEAL WITH GET PREVIOUS
+        // TODO: SKIP WHITEPSACE IN GET NEXT
+        // TODO: UN COMMENT OUT FILE READING
         Parser {
             all_tokens: all_tokens_input,
             curr_pos: 0,
+
+            t_text: "".to_string(),
+            t_type: "".to_string(),
 
             // fir_identifier: HashSet::from(["_", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]), // "_", alpha
             // fir_int_constant: HashSet::from(["-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]), // "-", digit]),
             // fir_float_constant: HashSet::from(["-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]), // "-", digit
             // fir_digit: HashSet::from(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]),
             // fir_alpha: HashSet::from(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]),
-
             fir_declaration: HashSet::from(["unsigned", "char", "short", "int", "long", "float", "double"]), // declaration_type .
             fir_main_declaration: HashSet::from(["void"]), 
             fir_function_definition: HashSet::from(["unsigned", "char", "short", "int", "long", "float", "double"]), // declaration_type
@@ -102,7 +108,7 @@ impl Parser {
             fir_function_declaration: HashSet::from(["("]), // parameter_block
             fir_block: HashSet::from(["{"]), 
             fir_parameter_block: HashSet::from(["("]), 
-            fir_data_type: HashSet::from(["unsigned", "char", "short", "int", "long", "float", "double"]), // integer_type, float_type .
+            fir_data_type: HashSet::from(["unsigned", "char", "short", "int", "long", "float", "double"]), // integer_type, floaself.t_type .
             // fir_constant: int_constant, float_constant
             fir_statement: HashSet::from(["while", "if", "return"]), // assignment, while_loop, if_statement, return_statement, expression
                 // additional regex: identifier, int_constant, float_constant, identifier
@@ -125,15 +131,17 @@ impl Parser {
         }
     }
 
-    fn okay(&mut self, res: Result<(), MyError>) -> bool {
-        match res {
-            Ok(()) => return true,
-            _ => return false
-        }
-    }
+    // fn okay(&mut self, res: Result<(), MyError>) -> bool {
+    //     match res {
+    //         Ok(()) => return true,
+    //         _ => return false
+    //     }
+    // }
     fn get_next(&mut self) -> Result<(), MyError> {
         if self.curr_pos < self.all_tokens.len() - 1 {
             self.curr_pos += 1;
+            self.t_text = self.all_tokens[self.curr_pos].text.clone();
+            self.t_type = self.all_tokens[self.curr_pos].token_type.as_str().clone().to_string();
             return Ok(());
         } else {
             // all_tokens vector has been fully traversed, but EBNF tree hasn't
@@ -142,7 +150,19 @@ impl Parser {
         }
     }
 
+    fn get_prev(&mut self) {
+        self.curr_pos -= 1;
+        self.t_text = self.all_tokens[self.curr_pos].text.clone();
+        self.t_type = self.all_tokens[self.curr_pos].token_type.as_str().clone().to_string();
+
+    }
+    // DOTHISTOGETHERTEAMWORK {declaration} main_declaration {function_definition}
     fn program_(&mut self) {
+        // init 
+        self.t_text = self.all_tokens[self.curr_pos].text.clone();
+        self.t_type = self.all_tokens[self.curr_pos].token_type.as_str().clone().to_string();
+
+        
         let result = self.mult_operator_();
         match result {
             Ok(()) => println!("Program is valid"),
@@ -151,83 +171,417 @@ impl Parser {
         }
     }
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // FLOAT_CONSTANT:  Regex::new(r"[-]?\d+\.\d+").unwrap().is_match(t)
-    // INT_CONSTANT:    Regex::new(r"[-]?\d+").unwrap().is_match(t)
-    // IDENTIFIER:      Regex::new(r"(_|[A-Za-z])([_|\d|[A-Za-z]])*").unwrap().is_match(t)
-
-
-    fn expression_(&mut self) -> Result<(), MyError> {
-        let t_type: &str = self.all_tokens[self.curr_pos].token_type.as_str().clone();
-        if self.okay(self.simple_expression_()){
-            if self.okay(self.relation_operator_()){
-                if !self.okay(self.simple_expression_()){
-                    let err_token = &self.all_tokens[self.curr_pos];
-                    return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
-                }
-                else{
-                    return Ok(());
-                }
-            }
-            else{
-                return Ok(());
-            }
+    // declarartion_type GROUP(variable_declaration | function_declaration)
+    fn declaration_(&mut self) -> Result<(), MyError> {
+        self.declaration_type_();
+        if self.fir_variable_declaration.contains(self.t_text.as_str()) {
+            self.variable_declaration_();
+        }
+        else if self.fir_function_declaration.contains(self.t_text.as_str()) {
+            self.function_declaration_();
+        }
+        else {
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        return Ok(());
+    }
+    // VOID MAIN ( ) block
+    fn main_declaration_(&mut self) -> Result<(), MyError> {
+        if self.t_text == "void".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }   
+        if self.t_text == "main".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        } 
+        if self.t_text == "(".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        } 
+        if self.t_text == ")".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        } 
+        self.block_();
+        return Ok(());
+    }
+    // declaration_type parameter_block block 
+    fn function_definition(&mut self) -> Result<(), MyError> {
+        self.declaration_type_();
+        self.parameter_block();
+        self.block_();
+        return Ok(());
+    }
+    // data_type identifier
+    fn declaration_type_(&mut self) -> Result<(), MyError> {
+        self.data_type_();
+        if self.t_type == "IDENTIFIER".to_string() {
+            self.get_next();
+        }
+        else {
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        return Ok(());
+    }
+    // [= constant] ;
+    fn variable_declaration_(&mut self) -> Result<(), MyError> {
+        if self.t_text == "=".to_string() {
+            self.get_next();
+            self.constant_();
+        }
+        if self.t_text == ";".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        } 
+        return Ok(());
+    }
+    // parameter_block ;
+    fn function_declaration_(&mut self) -> Result<(), MyError> {
+        self.parameter_block();
+        if self.t_text == ";".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        } 
+        return Ok(());
+    }
+    // { {decleration} {statement} {function_definition} } - OUTSIDE {} ARE TERMINAL
+    // sec(f_def) = fir(param_block) = "("
+    // sec(dec) = fir(var_dec) OR fir(func_dec) "=" or ";" or  "("
+        // third(f_def) = fir(block) = "{"
+        // third(dec) = fir(const) OR ; = 
+    fn block_(&mut self) -> Result<(), MyError> {
+        if self.t_text == "{".to_string() {
+            self.get_next();
         }
         else{
             let err_token = &self.all_tokens[self.curr_pos];
             return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
         }
+        while self.fir_declaration.contains(self.t_text.as_str()) {
+            self.declaration_();
+        }
+        while self.fir_statement.contains(self.t_text.as_str()) {
+            self.statement_();
+        }
+        while self.fir_function_definition.contains(self.t_text.as_str()) {
+            self.function_definition();
+        }
+        if self.t_text == "}".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        return Ok(());
     }
-    // 
-    fn simple_expression_(&mut self) -> Result<(), MyError> {
-        let t_text: String = self.all_tokens[self.curr_pos].text.clone();
-        let t_type: &str = self.all_tokens[self.curr_pos].token_type.as_str().clone();
-        if self.okay(self.term_()){
-            while self.fir_add_operator.contains(&t_text) {
-                    self.get_next();
-                    if !self.okay(self.term_()){
-                            let err_token = &self.all_tokens[self.curr_pos];
-                            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
-                    }
-                }
-                return Ok(());
+    // ( [parameter {, parameter}] )
+    fn parameter_block(&mut self) -> Result<(), MyError> {
+        if self.t_text == "(".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        if self.fir_parameter.contains(self.t_text.as_str()) {
+            self.parameter_();
+            while self.t_text == "," {
+                self.get_next();
+                self.parameter_();
+            }    
+        }
+        if self.t_text == ")".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }   
+        return Ok(());
+    }
+    
+    // integer_type | float_type
+    fn data_type_(&mut self) -> Result<(), MyError> {
+        if self.fir_float_type.contains(self.t_text.as_str()) {
+            self.float_type_();
+        }
+        else if self.fir_integer_type.contains(self.t_text.as_str()) {
+            self.integer_type_();
         }
         else {
             let err_token = &self.all_tokens[self.curr_pos];
             return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
         }
+        return Ok(());
     }
-    //
-    fn term_(&mut self) -> Result<(), MyError> {
-        let t_text: String = self.all_tokens[self.curr_pos].text.clone();
-        let t_type: &str = self.all_tokens[self.curr_pos].token_type.as_str().clone();
-        if self.okay(self.factor_()){
-            while self.fir_mult_operator.contains(&t_text) {
-                    self.get_next();
-                    if !self.okay(self.factor_()){
-                            let err_token = &self.all_tokens[self.curr_pos];
-                            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
-                    }
-                }
-                return Ok(());
-        }
-        else {
+    // int_constant | float_constant
+    fn constant_(&mut self) -> Result<(), MyError> {
+        if self.t_type == "FLOAT_CONSTANT".to_string() 
+        || self.t_type == "INT_CONSTANT".to_string() {
+            self.get_next();        }
+        else{
             let err_token = &self.all_tokens[self.curr_pos];
             return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
-        }
-    } 
+        } 
+        return Ok(());
+    }
 
+    // assignment | while_loop | if_statement | return_statement | expression ;
+    fn statement_(&mut self) -> Result<(), MyError> {
+        if self.fir_while_loop.contains(self.t_text.as_str()) {
+            self.while_loop_();
+        }
+        else if self.fir_if_statement.contains(self.t_text.as_str()) {
+            self.if_statement_();
+        }
+        else if self.fir_return_statement.contains(self.t_text.as_str()) {
+            self.return_statement_();
+        }
+        // assignment
+        else if self.t_type == "IDENTIFIER".to_string() && self.all_tokens[self.curr_pos + 1].text.clone() == "=".to_string() {
+            self.assignment_();
+        }
+        // expression: int_constant, float_constant, identifier
+        else if self.t_type == "IDENTIFIER".to_string() || self.t_type == "FLOAT_CONSTANT".to_string() 
+        || self.t_type == "INT_CONSTANT".to_string() {
+            self.expression_();
+            if self.t_text == ";".to_string() {
+                self.get_next();
+            }
+            else{
+                let err_token = &self.all_tokens[self.curr_pos];
+                return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+            }
+        }
+        else {
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        return Ok(());
+    }
+    // data_type identifier
+    fn parameter_(&mut self) -> Result<(), MyError> {
+        self.data_type_();
+        if self.t_type == "IDENTIFIER".to_string() {
+            self.get_next();
+        }
+        else {
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        } 
+        return Ok(());
+    }
+    // [ UNSIGNED ] group( CHAR | SHORT | INT | LONG)
+    fn integer_type_(&mut self) -> Result<(), MyError> {
+        if self.t_text == "unsigned".to_string() {
+            self.get_next();
+        }
+        if self.t_text == "char".to_string() {
+            self.get_next();
+        }
+        else if self.t_text == "short".to_string() {
+            self.get_next();
+        }
+        else if self.t_text == "int".to_string() {
+            self.get_next();
+        }
+        else if self.t_text == "long".to_string() {
+            self.get_next();
+        }
+        else {
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        return Ok(());
+    }
+    // FLOAT | DOUBLE
+    fn float_type_(&mut self) -> Result<(), MyError> {
+        if self.t_text == "float".to_string() {
+            self.get_next();
+        }
+        else if self.t_text == "double".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        return Ok(());
+    }
+    // identifier = {identifier =} expression ;
+    fn assignment_(&mut self) -> Result<(), MyError> {
+        if self.t_type == "IDENTIFIER".to_string() {
+            self.get_next();
+        }
+        else {
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }        
+        if self.t_text == "=".to_string() {
+            self.get_next();
+        }
+        else {
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        while self.t_type == "IDENTIFIER".to_string(){
+            self.get_next();
+            if self.t_text == "=".to_string() {
+                self.get_next();
+            }
+            else {
+                let err_token = &self.all_tokens[self.curr_pos];
+                return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+            }  
+        }
+        self.expression_(); 
+        if self.t_text == ";".to_string() {
+            self.get_next();
+        }
+        else {
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }    
+        return Ok(());
+        }
+    // WHILE ( expression ) block
+    fn while_loop_(&mut self) -> Result<(), MyError> {
+        if self.t_text == "while".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        if self.t_text == "(".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }        
+        self.expression_();
+        if self.t_text == ")".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        self.block_();
+        return Ok(());
+    }
+    // IF ( expression ) block
+    fn if_statement_(&mut self) -> Result<(), MyError> {
+        if self.t_text == "if".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        if self.t_text == "(".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }        
+        self.expression_();
+        if self.t_text == ")".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        self.block_();
+        return Ok(());
+    }
+    // RETURN expression ;
+    fn return_statement_(&mut self) -> Result<(), MyError> {
+        if self.t_text == "return".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        self.expression_();
+        if self.t_text == ";".to_string() {
+            self.get_next();
+        }
+        else{
+            let err_token = &self.all_tokens[self.curr_pos];
+            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
+        }
+        return Ok(());
+    }
+
+    // simple_expression [ relation_operator simple_expression ]
+    fn expression_(&mut self) -> Result<(), MyError> {
+        self.simple_expression_();
+        if self.fir_relation_operator.contains(self.t_text.as_str()) {
+                self.relation_operator_();
+                self.simple_expression_();
+        }
+        return Ok(());
+    }
+    // term { add_operator term }
+    fn simple_expression_(&mut self) -> Result<(), MyError> {
+        self.term_();
+        while self.fir_add_operator.contains(self.t_text.as_str()) {
+                self.add_operator_();
+                self.term_();
+        }
+        return Ok(());
+    }
+    // for options on which func to call |:
+    //      call FIRST
+    //      return error at last else
+    // for funcs that MUST be called
+    //      call func
+    // GET NEXT before every okay
+
+    // factor { mult_operator factor }
+    fn term_(&mut self) -> Result<(), MyError> {
+        self.factor_();
+        while self.fir_mult_operator.contains(self.t_text.as_str()) {
+                self.mult_operator_();
+                self.factor_();
+        }
+        return Ok(());
+    }
     // ( expression )     |   constant    |   identifier [ ( [ expression {, expression } ] ) ]
     fn factor_(&mut self) -> Result<(), MyError> {
-        let t_text: String = self.all_tokens[self.curr_pos].text.clone();
-        let t_type: &str = self.all_tokens[self.curr_pos].token_type.as_str().clone();
         // ( expression )
-        if t_text == "(".to_string() {
+        if self.t_text == "(".to_string() {
             self.get_next();
             self.expression_();
-            self.get_next();
-            if t_text == ")".to_string() {
+            if self.t_text == ")".to_string() {
                 self.get_next();
-                return Ok(());
             } else {
                 let err_token = &self.all_tokens[self.curr_pos];
                 return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
@@ -235,61 +589,47 @@ impl Parser {
         }
 
         // constant
-        else if t_type == "INT_CONSTANT" {
-            return Ok(());
+        else if self.t_type == "INT_CONSTANT".to_string() {
+            self.get_next();
         }
 
         // identifier [ ( [ expression {, expression } ] ) ]
-        else if t_type == "IDENTIFIER" {
+        else if self.t_type == "IDENTIFIER".to_string() {
+            self.get_next();
             // 1 case []
-            if t_text == "(".to_string() {
+            if self.t_text == "(".to_string() {
+                self.get_next();
                 // 1 case []
-                if self.okay(self.expression_()) {
-                    // 1+ case {}
-                    if t_text == "," {
-                        self.get_next();
-                        if self.okay(self.expression_()) {
-                            while t_text == "," {
-                                self.get_next();
-                                if !self.okay(self.expression_()) {
-                                    let err_token = &self.all_tokens[self.curr_pos];
-                                    return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
-                                }
-                            }
-                            return Ok(());
-                        }
-                        // , was not followed by expression
-                        else {
-                            let err_token = &self.all_tokens[self.curr_pos];
-                            return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
-                        }
-                    }
-                    // 0 case {}
-                    else {
-                        return Ok(());
-                    }
-                }
-                // 0 case []
+                self.expression_();
+                // 1+ case {}
+                while self.t_text == "," {
+                    self.get_next();
+                    self.expression_();
+                }    
+                // check matching )
+                if self.t_text == ")".to_string() {
+                    self.get_next();
+                } 
                 else {
-                    return Ok(());
+                let err_token = &self.all_tokens[self.curr_pos];
+                return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
                 }
             }
-            // 0 case []
             else {
-                return Ok(());
+                self.get_next();
             }
         }
         else {
             let err_token = &self.all_tokens[self.curr_pos];
             return Err(MyError::InvalidProgram{err_line_pos: err_token.line_num, err_char_pos: err_token.char_pos});
         }
+        return Ok(());
     }
     // ==   |   <   |   >   |   <=  |   >=  |   !=
     fn relation_operator_(&mut self) -> Result<(), MyError> {
-        let t = &self.all_tokens[self.curr_pos];
-        if t.text == "==".to_string() || t.token_type.as_str() == "<".to_string()
-        || t.token_type.as_str() == ">".to_string() || t.token_type.as_str() == "<=".to_string() 
-        || t.token_type.as_str() == ">=".to_string() || t.token_type.as_str() == "!=".to_string() {
+        if self.t_text == "==".to_string() || self.t_text == "<".to_string()
+        || self.t_text == ">".to_string() || self.t_text == "<=".to_string() 
+        || self.t_text == ">=".to_string() || self.t_text == "!=".to_string() {
             self.get_next();
             return Ok(());
         } else {
@@ -299,8 +639,7 @@ impl Parser {
     }
     // +    |   -
     fn add_operator_(&mut self) -> Result<(), MyError> {
-        let t = &self.all_tokens[self.curr_pos];
-        if t.text == "+".to_string() || t.token_type.as_str() == "-".to_string() {
+        if self.t_text == "+".to_string() || self.t_text == "-".to_string() {
             self.get_next();
             return Ok(());
         } else {
@@ -310,8 +649,7 @@ impl Parser {
     }
     // *    |   /
     fn mult_operator_(&mut self) -> Result<(), MyError> {
-        let t = &self.all_tokens[self.curr_pos];
-        if t.text == "*".to_string() || t.token_type.as_str() == "/".to_string() {
+        if self.t_text == "*".to_string() || self.t_text == "/".to_string() {
             self.get_next();
             return Ok(());
         } else {
@@ -495,4 +833,3 @@ impl CStream {
         CStream {f_vec: f_v}
     }
 }
-
